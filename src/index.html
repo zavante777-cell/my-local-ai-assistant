@@ -15,6 +15,18 @@
     <!-- Chat Screen -->
     <div id="chat-screen">
       <button id="back-button">Back</button>
+      
+      <!-- Model Selector -->
+      <div id="model-selector">
+        <label for="model-dropdown">Model:</label>
+        <select id="model-dropdown">
+          <option value="llama3">LLaMA 3</option>
+          <option value="mistral">Mistral</option>
+          <option value="codellama">Code Llama</option>
+          <option value="phi">Phi</option>
+        </select>
+      </div>
+      
       <div id="chat-log"></div>
       <div id="chat-input">
         <input type="text" id="user-input" placeholder="Ask your assistant..." />

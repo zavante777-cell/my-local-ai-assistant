@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const userInput = document.getElementById('user-input');
   const sendButton = document.getElementById('send-button');
   const chatLog = document.getElementById('chat-log');
+  const modelDropdown = document.getElementById('model-dropdown');
 
   // Start button click
   startButton.addEventListener('click', () => {
@@ -32,16 +33,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const message = userInput.value.trim();
     if (!message) return;
     
+    const selectedModel = modelDropdown.value;
     userInput.value = '';
     addMessageToChat(message, 'user-message');
     
     // Show typing indicator
-    const typingDiv = addMessageToChat('AI is typing...', 'ai-message');
+    const typingDiv = addMessageToChat('🤖 AI is thinking...', 'ai-message');
     
     try {
       // Check if electronAPI is available
       if (window.electronAPI && window.electronAPI.getAIResponse) {
-        const response = await window.electronAPI.getAIResponse(message);
+        const response = await window.electronAPI.getAIResponse(message, selectedModel);
         // Remove typing indicator
         typingDiv.remove();
         addMessageToChat(response, 'ai-message');
@@ -49,8 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Fallback fake response if preload didn't work
         setTimeout(() => {
           typingDiv.remove();
-          addMessageToChat(`Fake response to: "${message}" (preload not working yet)`, 'ai-message');
-        }, 1000);
+          addMessageToChat(`🤖 [${selectedModel.toUpperCase()}]: This is a fake response to "${message}". Real Ollama integration coming next!`, 'ai-message');
+        }, 1500);
       }
     } catch (error) {
       console.error('AI Error:', error);
