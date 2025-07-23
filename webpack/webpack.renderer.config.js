@@ -1,16 +1,23 @@
-const rules = require('./webpack.rules');
-
-// Add CSS rule
-rules.push({
-  test: /\.css$/,
-  use: [{ loader: 'style-loader' }, { loader: 'css-loader' }],
-});
-
 module.exports = {
+  entry: './src/renderer.js',
   module: {
-    rules,
+    rules: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: {
+          loader: 'babel-loader'
+        }
+      },
+      {
+        test: /\.css$/,
+        use: ['style-loader', 'css-loader']
+      }
+    ]
   },
-  resolve: {
-    extensions: ['.js', '.ts', '.jsx', '.tsx', '.css'],
+  output: {
+    filename: 'renderer.js',
+    path: __dirname + '/.webpack/renderer'
   },
+  target: 'electron-renderer'
 };

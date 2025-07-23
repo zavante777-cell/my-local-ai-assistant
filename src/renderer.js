@@ -1,11 +1,16 @@
 // Import CSS
 import './index.css';
 
+// Global state
+let isConnected = false;
+let availableModels = [];
+let currentModel = 'llama3';
+
 // Wait for DOM to load
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log('[RENDERER] DOM loaded, electronAPI available:', !!window.electronAPI);
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM loaded, initializing app...');
   
-  // Get elements
+  // Get elements with null checks
   const startScreen = document.getElementById('start-screen');
   const chatScreen = document.getElementById('chat-screen');
   const startButton = document.getElementById('start-button');
@@ -14,117 +19,219 @@ document.addEventListener('DOMContentLoaded', async () => {
   const sendButton = document.getElementById('send-button');
   const chatLog = document.getElementById('chat-log');
   const modelDropdown = document.getElementById('model-dropdown');
+  const connectionStatus = document.getElementById('connection-status');
 
-  // Test Ollama connection on startup
-  if (window.electronAPI && window.electronAPI.testOllamaConnection) {
-    try {
-      const connectionTest = await window.electronAPI.testOllamaConnection();
-      console.log('[RENDERER] Ollama connection test:', connectionTest);
-      
-      if (connectionTest.connected && connectionTest.models?.length > 0) {
-        // Update model dropdown with available models
-        modelDropdown.innerHTML = '';
-        connectionTest.models.forEach(model => {
-          const option = document.createElement('option');
-          option.value = model;
-          option.textContent = model.charAt(0).toUpperCase() + model.slice(1);
-          modelDropdown.appendChild(option);
-        });
+  // Check if all elements exist
+  if (!startScreen || !chatScreen || !startButton || !backButton || 
+      !userInput || !sendButton || !chatLog || !modelDropdown) {
+    console.error('Critical UI elements missing!');
+    return;
+  }
+
+  // Initialize the app
+  initializeApp();
+
+  async function initializeApp() {
+    console.log('Initializing app...');
+    
+    // Test connection and load models
+    if (window.electronAPI) {
+      try {
+        const connectionResult = await window.electronAPI.testOllamaConnection();
+        
+        if (connectionResult.success) {
+          isConnected = true;
+          availableModels = connectionResult.models;
+          updateModelDropdown();
+          updateConnectionStatus('Connected to Ollama ✅', 'success');
+        } else {
+          isConnected = false;
+          updateConnectionStatus(`Connection failed: ${connectionResult.error}`, 'error');
+        }
+      } catch (error) {
+        console.error('Failed to test connection:', error);
+        updateConnectionStatus('Failed to test connection', 'error');
       }
-    } catch (error) {
-      console.error('[RENDERER] Connection test failed:', error);
+    } else {
+      console.error('electronAPI not available!');
+      updateConnectionStatus('ElectronAPI not available', 'error');
+    }
+  }
+
+  function updateModelDropdown() {
+    if (!modelDropdown) return;
+    
+    // Clear existing options
+    modelDropdown.innerHTML = '';
+    
+    if (availableModels.length === 0) {
+      const option = document.createElement('option');
+      option.value = 'llama3';
+      option.textContent = 'LLaMA 3 (default)';
+      modelDropdown.appendChild(option);
+    } else {
+      availableModels.forEach(model => {
+        const option = document.createElement('option');
+        option.value = model.name;
+        option.textContent = `${model.name} (${(model.size / 1024 / 1024 / 1024).toFixed(1)}GB)`;
+        modelDropdown.appendChild(option);
+      });
+    }
+    
+    // Set current model
+    modelDropdown.value = currentModel;
+  }
+
+  function updateConnectionStatus(message, type) {
+    if (connectionStatus) {
+      connectionStatus.textContent = message;
+      connectionStatus.className = `connection-status ${type}`;
+    } else {
+      // If no connection status element, show in console
+      console.log(`Connection Status: ${message}`);
     }
   }
 
   // Start button click
-  startButton.addEventListener('click', () => {
-    startScreen.style.display = 'none';
-    chatScreen.style.display = 'flex';
-    userInput.focus();
-    
-    // Add welcome message
-    addMessageToChat('🤖 Hello! I\'m your local AI assistant. How can I help you today?', 'ai-message');
-  });
+  if (startButton) {
+    startButton.addEventListener('click', () => {
+      if (startScreen && chatScreen) {
+        startScreen.style.display = 'none';
+        chatScreen.style.display = 'flex';
+        if (userInput) userInput.focus();
+      }
+    });
+  }
 
   // Back button click
-  backButton.addEventListener('click', () => {
-    chatScreen.style.display = 'none';
-    startScreen.style.display = 'flex';
-    // Clear chat log
+  if (backButton) {
+    backButton.addEventListener('click', () => {
+      if (chatScreen && startScreen && chatLog) {
+        chatScreen.style.display = 'none';
+        startScreen.style.display = 'flex';
+        chatLog.innerHTML = ''; // Clear chat log
+      }
+    });
+  }
+
+  // Model dropdown change
+  if (modelDropdown) {
+    modelDropdown.addEventListener('change', (e) => {
+      currentModel = e.target.value;
+      console.log('Model changed to:', currentModel);
+    });
+  }
+
+  // Persistent chat history
+  function saveChatHistory() {
+    if (!chatLog) return;
+    const messages = Array.from(chatLog.children).map(div => ({
+      text: div.textContent,
+      className: div.className
+    }));
+    localStorage.setItem('chatHistory', JSON.stringify(messages));
+  }
+
+  function loadChatHistory() {
+    if (!chatLog) return;
+    const messages = JSON.parse(localStorage.getItem('chatHistory') || '[]');
     chatLog.innerHTML = '';
-  });
+    messages.forEach(msg => {
+      const div = document.createElement('div');
+      div.className = msg.className;
+      div.textContent = msg.text;
+      chatLog.appendChild(div);
+    });
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+  loadChatHistory();
 
   // Send message function
   async function sendMessage() {
+    if (!userInput || !chatLog) return;
+    
     const message = userInput.value.trim();
     if (!message) return;
     
-    const selectedModel = modelDropdown.value;
     userInput.value = '';
-    userInput.disabled = true;
-    sendButton.disabled = true;
-    sendButton.textContent = 'Sending...';
-    
     addMessageToChat(message, 'user-message');
     
-    // Show typing indicator with model info
-    const typingDiv = addMessageToChat(`🤖 [${selectedModel.toUpperCase()}] is thinking...`, 'ai-message typing-indicator');
+    // Check connection status
+    if (!isConnected) {
+      addMessageToChat('⚠️ Not connected to Ollama. Please make sure Ollama is running with "ollama serve".', 'ai-message error');
+      return;
+    }
+    
+    // Show typing indicator
+    const typingDiv = addMessageToChat('🤖 AI is thinking...', 'ai-message typing');
+    
+    // Disable input while processing
+    if (sendButton) sendButton.disabled = true;
+    if (userInput) userInput.disabled = true;
     
     try {
-      // Check if electronAPI is available
       if (window.electronAPI && window.electronAPI.getAIResponse) {
-        console.log('[RENDERER] Sending message to AI:', message);
-        const response = await window.electronAPI.getAIResponse(message, selectedModel);
-        console.log('[RENDERER] Got AI response:', response);
+        const response = await window.electronAPI.getAIResponse(message, currentModel);
         
         // Remove typing indicator
-        typingDiv.remove();
-        addMessageToChat(response, 'ai-message');
+        if (typingDiv && typingDiv.parentNode) {
+          typingDiv.remove();
+        }
+        
+        // Add AI response
+        // Only display the AI's message text (Ollama returns { response: "..." })
+        addMessageToChat(response.response || JSON.stringify(response), 'ai-message');
       } else {
-        // Fallback fake response if preload didn't work
-        console.warn('[RENDERER] electronAPI not available, using fallback');
-        setTimeout(() => {
-          typingDiv.textContent = '❌ ElectronAPI not loaded. Please restart the app.';
-          typingDiv.className = 'message ai-message error-message';
-        }, 1000);
+        // Fallback if electronAPI is not available
+        if (typingDiv && typingDiv.parentNode) {
+          typingDiv.remove();
+        }
+        addMessageToChat('❌ ElectronAPI not available. Please restart the application.', 'ai-message error');
       }
     } catch (error) {
-      console.error('[RENDERER] AI Error:', error);
-      typingDiv.remove();
-      addMessageToChat('❌ Sorry, I encountered an error. Please try again.', 'ai-message error-message');
+      console.error('AI Error:', error);
+      if (typingDiv && typingDiv.parentNode) {
+        typingDiv.remove();
+      }
+      addMessageToChat(`❌ Error: ${error.message}`, 'ai-message error');
     } finally {
       // Re-enable input
-      userInput.disabled = false;
-      sendButton.disabled = false;
-      sendButton.textContent = 'Send';
-      userInput.focus();
+      if (sendButton) sendButton.disabled = false;
+      if (userInput) {
+        userInput.disabled = false;
+        userInput.focus();
+      }
     }
   }
 
   // Add message to chat
   function addMessageToChat(message, className) {
+    if (!chatLog) return null;
+    
     const messageDiv = document.createElement('div');
     messageDiv.className = `message ${className}`;
     messageDiv.textContent = message;
     chatLog.appendChild(messageDiv);
     chatLog.scrollTop = chatLog.scrollHeight;
+    saveChatHistory();
     return messageDiv;
   }
 
   // Send button click
-  sendButton.addEventListener('click', sendMessage);
+  if (sendButton) {
+    sendButton.addEventListener('click', sendMessage);
+  }
 
   // Enter key press
-  userInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-  
-  // Auto-resize input as user types
-  userInput.addEventListener('input', () => {
-    userInput.style.height = 'auto';
-    userInput.style.height = userInput.scrollHeight + 'px';
-  });
+  if (userInput) {
+    userInput.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' && !e.shiftKey) || (e.key === 'Enter' && e.ctrlKey)) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  }
+
+  console.log('App initialization complete');
 });
