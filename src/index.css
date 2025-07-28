@@ -274,11 +274,13 @@ button:disabled {
   background: rgba(30,30,30,0.85);
   transition: background 0.3s, color 0.3s;
 }
+
 #connection-status.success {
   color: #00ffc8;
   background: rgba(0,188,212,0.12);
   border: 1px solid #00ffc8;
 }
+
 #connection-status.error {
   color: #ff6b81;
   background: rgba(255,107,129,0.10);
@@ -296,13 +298,16 @@ button:disabled {
 button, #send-button {
   box-shadow: 0 4px 15px rgba(0, 255, 200, 0.18), 0 1.5px 8px rgba(255, 0, 255, 0.10);
 }
+
 #model-dropdown {
   background: linear-gradient(135deg, #333, #00bcd4 40%, #ffb6b9 100%);
   color: #fff;
 }
+
 #chat-header {
   box-shadow: 0 2px 12px rgba(0,255,200,0.08);
 }
+
 #user-input {
   box-shadow: 0 2px 8px rgba(0,255,200,0.10);
 }
