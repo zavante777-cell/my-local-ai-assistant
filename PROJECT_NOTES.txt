@@ -1,0 +1,71 @@
+Local AI Assistant – Project Summary & Timeline
+Generated on: 2025-07-23 02:39:35
+
+🖥️ Platform Overview:
+- Desktop Electron app with custom anime-inspired UI
+- Local LLM backend: LLaMA 3 via Ollama (runs fully offline)
+- Future Android extension (WebView or native app)
+
+📂 File Structure:
+- All code in `src/`: main.js, preload.js, renderer.js, index.html, index.css
+- Using Electron Forge with Webpack
+
+🎯 Core Goals:
+1. ❌ No cloud/online AI — runs fully offline
+2. ✅ LLaMA 3 (via Ollama) as default AI model
+3. 🧠 Persistent memory of user actions/preferences across sessions and devices
+4. 🔁 UI & UX: Custom welcome screen, chat bubbles, GIF backgrounds, Suge Anime-inspired theme
+5. 🧠 AI Features:
+   - Real responses from Ollama
+   - Spellcheck & typo correction
+   - Future: behavior learning, file suggestion, image generation/understanding
+   - Trigger words to activate popups/assistant
+
+---
+
+📅 Timeline
+
+✅ Phase 1: Initial Setup
+- Created Electron app with Forge
+- Custom UI + fake AI responses
+- Welcome screen + chat UI with styling and animations
+
+🔄 Phase 2: Real AI Integration (In Progress)
+- Installed Ollama with LLaMA 3
+- Working on preload.js to renderer.js bridge
+- Connecting to Ollama API (`http://localhost:11434/api/generate`)
+- Typing animation, loading indicators, scroll-to-bottom, history
+
+🧠 Phase 3: Memory & Learning (Planned)
+- Store memory in local file or localStorage
+- Auto-sync memory using Syncthing
+- AI learns from user behavior (apps, patterns, actions)
+- Adjusts tone, responses, suggestions over time
+
+🖼️ Phase 4: Vision & Image Features (Planned)
+- Image description and alt-text
+- Local image generation (anime avatars, backgrounds)
+- Consistent visual style
+
+📱 Android Phase: Cross-Device Assistant (Planned)
+- Android wrapper with same UI & chat design
+- Connect to desktop Ollama via LAN
+- Auto memory sync via Syncthing
+- Behavior tracking and image understanding
+- Trigger assistant via keywords or behavior
+
+---
+
+📌 Developer Preferences (Saved):
+- Step-by-step file updates and JS safety (wait for DOM)
+- Code blocks clearly labeled (HTML / CSS / JS)
+- Soft shadows, rounded corners, pastel/cyberpunk design
+- Offline-first, no cloud dependencies
+
+---
+
+🧠 Future Behavior Learning:
+- AI should passively learn your habits over time
+- Understand context (e.g. when you're moving APKs or switching tasks)
+- Recommend optimizations based on repeated actions
+- Store and adapt memory intelligently without internet 

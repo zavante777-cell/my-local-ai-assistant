@@ -13,7 +13,7 @@ body {
   height: 100vh;
   flex-direction: column;
   animation: fadeIn 1s ease-in-out;
-  background: linear-gradient(135deg, #1e1e1e 0%, #121212 100%);
+  background: rgba(30, 30, 30, 0.7);
 }
 
 #start-screen h1 {
@@ -251,9 +251,9 @@ button:disabled {
 #gif-background {
   position: fixed;
   top: 0; left: 0; width: 100vw; height: 100vh;
-  z-index: 0;
+  z-index: -1;
   background: url('assets/anime-bg.gif') center center/cover no-repeat;
-  opacity: 0.18;
+  opacity: 0.15;
   pointer-events: none;
   transition: opacity 0.5s;
 }
@@ -261,6 +261,7 @@ button:disabled {
 #chat-screen, #start-screen {
   position: relative;
   z-index: 1;
+  background: rgba(30, 30, 30, 0.85);
 }
 
 #connection-status {
@@ -300,8 +301,14 @@ button, #send-button {
 }
 
 #model-dropdown {
-  background: linear-gradient(135deg, #333, #00bcd4 40%, #ffb6b9 100%);
-  color: #fff;
+  background: linear-gradient(135deg, #2a2a2a, #3a3a3a);
+  color: #ffffff;
+  border: 1px solid #00bcd4;
+}
+
+#model-dropdown option {
+  background: #2a2a2a;
+  color: #ffffff;
 }
 
 #chat-header {

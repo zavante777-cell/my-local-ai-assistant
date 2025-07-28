@@ -38,6 +38,8 @@ ipcMain.handle('get-ai-response', async (_, { message, model }) => {
 
 // --- Create Main Window ---
 function createWindow() {
+  console.log('Creating main window...');
+  
   const win = new BrowserWindow({
     width: 1000,
     height: 700,
@@ -47,10 +49,26 @@ function createWindow() {
       nodeIntegration: false
     }
   });
-  win.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
+  
+  console.log('Loading HTML file directly...');
+  win.loadFile(path.join(__dirname, 'index.html'));
+  
+  // Open DevTools for debugging
+  win.webContents.openDevTools();
+  
+  win.webContents.on('did-finish-load', () => {
+    console.log('Window finished loading');
+  });
+  
+  win.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Window failed to load:', errorCode, errorDescription);
+  });
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  console.log('App is ready, creating window...');
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
