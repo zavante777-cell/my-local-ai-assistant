@@ -1,7 +1,7 @@
 // Global state
 let isConnected = false;
 let availableModels = [];
-let currentModel = 'llama2:7b-chat-q4_K_M'; // Use better model by default
+let currentModel = 'qwen2.5:0.5b'; // Use working model by default
 let speedMode = 'balanced';
 let devMode = false;
 let codeExecution = false;
@@ -410,14 +410,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Clear existing options
     modelDropdown.innerHTML = '';
     
-    // Add models with speed indicators (using actual installed model names)
+    // Add models with speed indicators (using only working models)
     const models = [
       { name: 'auto', display: '🤖 Auto (Smart Selection)', speed: 'Adaptive' },
-      { name: 'llama2:7b-chat-q4_K_M', display: '⚡ Llama2 7B Q4 (Fast & Smart)', speed: 'Fast' },
-      { name: 'tinyllama', display: '🚀 TinyLlama (Very Fast)', speed: 'Very Fast' },
-      { name: 'phi3:mini', display: '⚡ Phi-3 Mini (Fast)', speed: 'Fast' },
-      { name: 'mistral', display: '⚡ Mistral (Fast)', speed: 'Fast' },
-      { name: 'llama3', display: '🐌 LLaMA 3 (Standard)', speed: 'Standard' }
+      { name: 'qwen2.5:0.5b', display: '⚡ Qwen2.5 0.5B (Fast & Reliable)', speed: 'Fast' },
+      { name: 'tinyllama:latest', display: '🚀 TinyLlama (Very Fast)', speed: 'Very Fast' }
     ];
     
     models.forEach(model => {
@@ -431,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
       modelDropdown.appendChild(option);
     });
     
-    console.log('Model dropdown updated with models:', models.map(m => m.name));
+    console.log('Model dropdown updated with working models:', models.map(m => m.name));
   }
 
   // Update connection status display

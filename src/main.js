@@ -201,62 +201,15 @@ function spellcheck(text) {
 // Get speed optimization parameters for each model
 function getSpeedParams(model, speedMode = 'balanced') {
   const baseConfigs = {
-    'qwen2.5:0.5b': {
-      num_predict: 128, // Very short responses for ultra speed
-      temperature: 0.6,
-      top_p: 0.9,
-      repeat_penalty: 1.1
-    },
-    'tinyllama': {
-      num_predict: 256,
-      temperature: 0.7,
-      top_p: 0.9,
-      repeat_penalty: 1.1
-    },
-    'llama2:7b-chat-q4_K_M': {
-      num_predict: 512,
-      temperature: 0.8,
-      top_p: 0.9,
-      repeat_penalty: 1.1
-    },
-    'phi3:mini': {
-      num_predict: 512,
-      temperature: 0.8,
-      top_p: 0.9,
-      repeat_penalty: 1.1
-    },
-    'mistral': {
-      num_predict: 1024,
-      temperature: 0.8,
-      top_p: 0.9,
-      repeat_penalty: 1.1
-    },
-    'llama3': {
-      num_predict: 2048,
-      temperature: 0.8,
-      top_p: 0.9,
-      repeat_penalty: 1.1
-    }
+    'qwen2.5:0.5b': { num_predict: 128, temperature: 0.6, top_p: 0.9, repeat_penalty: 1.1 },
+    'tinyllama:latest': { num_predict: 256, temperature: 0.7, top_p: 0.9, repeat_penalty: 1.1 }
   };
-  
-  const config = baseConfigs[model] || baseConfigs['llama3'];
-  
-  // Adjust based on speed mode
+  const config = baseConfigs[model] || baseConfigs['qwen2.5:0.5b'];
   switch (speedMode) {
-    case 'fast':
-      config.num_predict = Math.floor(config.num_predict * 0.5); // Shorter responses
-      config.temperature = 0.6; // More focused
-      break;
-    case 'quality':
-      config.num_predict = Math.floor(config.num_predict * 1.5); // Longer responses
-      config.temperature = 0.9; // More creative
-      break;
-    case 'balanced':
-    default:
-      // Use default values
-      break;
+    case 'fast': config.num_predict = Math.floor(config.num_predict * 0.5); config.temperature = 0.6; break;
+    case 'quality': config.num_predict = Math.floor(config.num_predict * 1.5); config.temperature = 0.9; break;
+    case 'balanced': default: break;
   }
-  
   return config;
 }
 
@@ -266,47 +219,47 @@ function getRecommendedModel(message) {
   
   // For coding tasks
   if (lowerMessage.includes('code') || lowerMessage.includes('program') || lowerMessage.includes('function')) {
-    return 'llama2:7b-chat-q4_K_M'; // Good for coding
+    return 'qwen2.5:0.5b'; // Use working model for coding
   }
   
   // For creative tasks
   if (lowerMessage.includes('write') || lowerMessage.includes('story') || lowerMessage.includes('creative')) {
-    return 'llama3'; // Better for creative tasks
+    return 'qwen2.5:0.5b'; // Use working model for creative tasks
   }
   
   // For fast responses
   if (lowerMessage.includes('quick') || lowerMessage.includes('fast') || lowerMessage.includes('simple')) {
-    return 'tinyllama'; // Fast model
+    return 'qwen2.5:0.5b'; // Fastest working model
   }
   
   // For complex reasoning
   if (lowerMessage.includes('explain') || lowerMessage.includes('why') || lowerMessage.includes('how')) {
-    return 'llama2:7b-chat-q4_K_M'; // Good reasoning
+    return 'qwen2.5:0.5b'; // Use working model for reasoning
   }
   
   // For file operations
   if (lowerMessage.includes('file') || lowerMessage.includes('create') || lowerMessage.includes('make')) {
-    return 'llama2:7b-chat-q4_K_M'; // Good for tasks
+    return 'qwen2.5:0.5b'; // Use working model for tasks
   }
   
-  // Default to balanced model
-  return 'llama2:7b-chat-q4_K_M';
+  // Default to working model
+  return 'qwen2.5:0.5b';
 }
 
 // Get available models (check what's actually installed)
 function getAvailableModels() {
   return [
-    'llama2:7b-chat-q4_K_M',
-    'tinyllama',
-    'phi3:mini', 
-    'mistral',
-    'llama3'
+    'qwen2.5:0.5b',
+    'tinyllama:latest'
+    // Removed memory-hungry models that cause HTTP 500 errors
   ];
 }
 
 // Enhanced AI response with memory context and streaming
 async function getEnhancedAIResponse(message, model, speedMode = 'balanced') {
   try {
+    console.log(`Attempting to get AI response with model: ${model}, speedMode: ${speedMode}`);
+    
     // Spellcheck the message
     const correctedMessage = spellcheck(message);
     const wasCorrected = correctedMessage !== message;
@@ -314,6 +267,7 @@ async function getEnhancedAIResponse(message, model, speedMode = 'balanced') {
     // Get recommended model if using auto-selection
     if (model === 'auto') {
       model = getRecommendedModel(correctedMessage);
+      console.log(`Auto-selected model: ${model}`);
     }
     
     // Build context from memory
@@ -322,6 +276,7 @@ async function getEnhancedAIResponse(message, model, speedMode = 'balanced') {
     // Check for dev mode commands
     const devCommands = await handleDevCommands(correctedMessage);
     if (devCommands.shouldExecute) {
+      console.log('Executing dev command instead of AI response');
       return devCommands.response;
     }
     
@@ -333,6 +288,7 @@ async function getEnhancedAIResponse(message, model, speedMode = 'balanced') {
     
     // Handle ensemble mode
     if (model === 'ensemble') {
+      console.log('Using ensemble mode');
       const availableModels = getAvailableModels();
       const result = await getEnsembleResponse(enhancedPrompt, availableModels, speedMode);
       
@@ -354,20 +310,34 @@ async function getEnhancedAIResponse(message, model, speedMode = 'balanced') {
     
     // Speed optimization parameters
     const speedParams = getSpeedParams(model, speedMode);
+    console.log(`Using speed params for ${model}:`, speedParams);
+    
+    const requestBody = {
+      model,
+      prompt: enhancedPrompt,
+      stream: false, // We'll implement streaming in the renderer
+      options: speedParams
+    };
+    
+    console.log(`Sending request to Ollama with model: ${model}`);
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
     
     const response = await fetch(`${OLLAMA_API_BASE}/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        prompt: enhancedPrompt,
-        stream: false, // We'll implement streaming in the renderer
-        options: speedParams
-      })
+      body: JSON.stringify(requestBody)
     });
     
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    console.log(`Ollama response status: ${response.status}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Ollama error response: ${errorText}`);
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    
     const result = await response.json();
+    console.log('Ollama response received successfully');
     
     // Track behavior
     trackBehavior('message_sent', {
@@ -385,6 +355,12 @@ async function getEnhancedAIResponse(message, model, speedMode = 'balanced') {
     
   } catch (error) {
     console.error('Enhanced AI response error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      model: model,
+      speedMode: speedMode
+    });
     return { response: `Error: ${error.message}` };
   }
 }
@@ -703,26 +679,9 @@ function prepareTrainingDataset() {
 
 // Get conversation history for better context
 function getConversationHistory() {
-  try {
-    const savedChats = JSON.parse(localStorage.getItem('chatHistoryList') || '[]');
-    if (savedChats.length === 0) return '';
-    
-    // Get the most recent chat
-    const currentChat = savedChats[0];
-    if (!currentChat.messages || currentChat.messages.length === 0) return '';
-    
-    // Build conversation history (last 10 messages)
-    const recentMessages = currentChat.messages.slice(-10);
-    const history = recentMessages.map(msg => {
-      const role = msg.className.includes('user-message') ? 'User' : 'Assistant';
-      return `${role}: ${msg.text}`;
-    }).join('\n');
-    
-    return history;
-  } catch (error) {
-    console.error('Error getting conversation history:', error);
-    return '';
-  }
+  // localStorage is not available in main process, so we'll skip this for now
+  // The conversation history will be handled in the renderer process
+  return '';
 }
 
 // --- IPC Handlers ---
