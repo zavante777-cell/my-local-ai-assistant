@@ -16,29 +16,120 @@
     </div>
 
     <!-- Chat Screen -->
-    <div id="chat-screen" role="main" aria-label="Chat Screen">
+    <div id="chat-screen" style="display: none;">
       <!-- Chat Header with Back Button and Model Selector -->
       <div id="chat-header">
-        <button id="back-button" aria-label="Back to welcome screen"> Back</button>
+        <button id="back-button">← Back</button>
+        <button id="new-chat-button">�� New Chat</button>
+        <button id="settings-button">⚙️ Settings</button>
+        <button id="chat-history-button">📚 Chats</button>
         <div id="model-selector">
           <label for="model-dropdown">Model:</label>
-          <select id="model-dropdown" aria-label="AI Model Selection">
-            <option value="llama3">LLaMA 3</option>
-            <option value="mistral">Mistral</option>
-            <option value="codellama">Code Llama</option>
-            <option value="phi">Phi</option>
+          <select id="model-dropdown"></select>
+        </div>
+        <div id="speed-settings">
+          <label for="speed-mode">Speed:</label>
+          <select id="speed-mode">
+            <option value="fast">🚀 Fast</option>
+            <option value="balanced" selected>⚖️ Balanced</option>
+            <option value="quality">🎯 Quality</option>
           </select>
         </div>
       </div>
-      <!-- Connection Status -->
-      <div id="connection-status" role="status" aria-live="polite"></div>
-      <div id="chat-log" aria-live="polite" aria-label="Chat Log"></div>
-      <div id="chat-input">
-        <input type="text" id="user-input" placeholder="Ask your assistant..." aria-label="Type your message" spellcheck="true" />
-        <button id="send-button" aria-label="Send message">Send</button>
+      
+      <!-- Chat History Sidebar -->
+      <div id="chat-sidebar" class="sidebar">
+        <div class="sidebar-header">
+          <h3>📚 Chat History</h3>
+          <button id="close-sidebar">×</button>
+        </div>
+        <div class="chat-list" id="chat-list">
+          <!-- Chat history items will be added here -->
+        </div>
+      </div>
+      
+      <!-- Main Chat Area -->
+      <div id="chat-main">
+        <!-- Connection Status -->
+        <div id="connection-status"></div>
+        
+        <!-- Chat Log -->
+        <div id="chat-log"></div>
+        
+        <!-- Chat Input -->
+        <div id="chat-input">
+          <textarea id="user-input" placeholder="Type your message here..." spellcheck="true"></textarea>
+          <button id="send-button">Send</button>
+        </div>
       </div>
     </div>
     
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>⚙️ Settings</h2>
+          <button id="close-settings" class="close-btn">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="setting-group">
+            <h3>🔧 Development Mode</h3>
+            <div class="setting-item">
+              <label for="dev-mode-toggle">Enable Dev Mode:</label>
+              <input type="checkbox" id="dev-mode-toggle">
+              <span class="warning">⚠️ Allows AI to run terminal commands and edit files</span>
+            </div>
+            <div class="setting-item">
+              <label for="code-execution">Code Execution:</label>
+              <input type="checkbox" id="code-execution" disabled>
+              <span class="note">Requires Dev Mode</span>
+            </div>
+            <div class="setting-item">
+              <label for="file-editing">File Editing:</label>
+              <input type="checkbox" id="file-editing" disabled>
+              <span class="note">Requires Dev Mode</span>
+            </div>
+          </div>
+          
+          <div class="setting-group">
+            <h3>🧠 AI Preferences</h3>
+            <div class="setting-item">
+              <label for="response-style">Response Style:</label>
+              <select id="response-style">
+                <option value="friendly">😊 Friendly</option>
+                <option value="professional">👔 Professional</option>
+                <option value="casual">😎 Casual</option>
+                <option value="technical">🔧 Technical</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="setting-group">
+            <h3>💾 Memory Settings</h3>
+            <div class="setting-item">
+              <button id="clear-memory" class="danger-btn">🗑️ Clear All Memory</button>
+              <span class="warning">This cannot be undone!</span>
+            </div>
+          </div>
+          
+          <div class="setting-group">
+            <h3>🧠 Model Training</h3>
+            <div class="setting-item">
+              <button id="export-training-data" class="training-btn">📊 Export Training Data</button>
+              <span class="note">Export chat history for model training</span>
+            </div>
+            <div class="setting-item">
+              <button id="prepare-dataset" class="training-btn">📋 Prepare Dataset</button>
+              <span class="note">Convert chat history to training format</span>
+            </div>
+            <div class="setting-item">
+              <button id="get-fastest-model" class="training-btn">⚡ Get Fastest Model</button>
+              <span class="note">Find the fastest available model</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <script src="renderer.js"></script>
   </body>
 </html>
