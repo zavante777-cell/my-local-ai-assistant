@@ -15,4 +15,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   exportTrainingData: () => ipcRenderer.invoke('export-training-data'),
   prepareTrainingDataset: () => ipcRenderer.invoke('prepare-training-dataset'),
   getFastestModel: () => ipcRenderer.invoke('get-fastest-model'),
+  // Data sharing functions
+  getAvailableModels: () => ipcRenderer.invoke('get-available-models'),
+  // Intent handling functions
+  handleUserRequest: (message) => ipcRenderer.invoke('handle-user-request', message),
+  addUserCorrection: (originalMessage, correctedIntent, feedback) => ipcRenderer.invoke('add-user-correction', { originalMessage, correctedIntent, feedback }),
+  getIntentStats: () => ipcRenderer.invoke('get-intent-stats'),
+  copyChatToClipboard: (errorMessage) => ipcRenderer.invoke('copy-chat-to-clipboard', errorMessage),
 });

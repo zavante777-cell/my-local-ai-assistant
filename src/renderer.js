@@ -68,6 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize app
   initializeApp();
+  
+  // Add profile system indicator
+  addProfileIndicator();
 
   // Start button click
   if (startButton) {
@@ -639,36 +642,99 @@ document.addEventListener('DOMContentLoaded', () => {
     const typingIndicator = addMessageToChat(`${speedEmoji} Thinking...`, 'ai-message typing');
     
     try {
-      // Get enhanced AI response
-      const response = await window.electronAPI.getAIResponse(message, currentModel, speedMode);
+      // First, try to handle as an intent-based request
+      const intentResult = await window.electronAPI.handleUserRequest(message);
       
       // Remove typing indicator
       if (typingIndicator) typingIndicator.remove();
       
-      // Show spellcheck correction if any
-      if (response.corrected && response.corrected !== response.original) {
-        addMessageToChat(`📝 Corrected: "${response.original}" → "${response.corrected}"`, 'correction-message');
-      }
-      
-      // Add AI response with speed indicator
-      if (response && response.response) {
-        const speedIndicator = getSpeedIndicator(currentModel);
-        addMessageToChat(`${speedIndicator} ${response.response}`, 'ai-message');
+      if (intentResult.success) {
+        // Intent was handled successfully
+        addMessageToChat(`🎯 Intent: ${intentResult.action} (${Math.round(intentResult.confidence * 100)}% confidence)`, 'intent-message');
+        addMessageToChat(intentResult.message, 'ai-message success');
+      } else if (intentResult.confidence > 0.3) {
+        // Intent detected but failed
+        addMessageToChat(`❌ Intent failed: ${intentResult.message}`, 'ai-message error');
       } else {
-        addMessageToChat('❌ Error: No response from AI', 'ai-message error');
+        // Show debug info for low confidence
+        if (intentResult.confidence > 0.1) {
+          addMessageToChat(`🔍 Debug: Detected "${intentResult.action}" with ${Math.round(intentResult.confidence * 100)}% confidence`, 'correction-message');
+        }
+        
+        // No intent detected, fall back to AI response
+        try {
+          const response = await window.electronAPI.getAIResponse(message, currentModel, speedMode);
+          
+          // Show spellcheck correction if any
+          if (response.corrected && response.corrected !== response.original) {
+            addMessageToChat(`📝 Corrected: "${response.original}" → "${response.corrected}"`, 'correction-message');
+          }
+          
+          // Add AI response with speed indicator
+          if (response && response.response) {
+            const speedIndicator = getSpeedIndicator(currentModel);
+            let message = `${speedIndicator} ${response.response}`;
+            
+            // Show if a fallback model was used
+            if (response.usedModel && response.usedModel !== currentModel) {
+              message += `\n\n💡 Note: Used ${response.usedModel} instead of ${currentModel} due to memory constraints.`;
+            }
+            
+            addMessageToChat(message, 'ai-message');
+          } else if (response && response.success === false) {
+            // Handle formatted error from main process
+            addMessageToChat(response.error, 'ai-message error');
+            addMessageToChat('💾 Chat copied to clipboard for debugging', 'correction-message');
+            
+            // Copy to clipboard
+            try {
+              await window.electronAPI.copyChatToClipboard(response.originalError || response.error);
+            } catch (clipboardError) {
+              console.error('Failed to copy to clipboard:', clipboardError);
+            }
+          } else {
+            addMessageToChat('❌ Error: No response from AI', 'ai-message error');
+          }
+        } catch (error) {
+          // Handle AI errors with better feedback - ALWAYS show error and copy to clipboard
+          let errorMessage = '❌ AI Error: Could not get response';
+          let clipboardMessage = '💾 Chat copied to clipboard for debugging';
+          
+          if (error.message.includes('memory') || error.message.includes('GiB')) {
+            errorMessage = '❌ AI Error: Not enough RAM for the model. Try a smaller model or close other apps.';
+          } else if (error.message.includes('HTTP 500') || error.message.includes('500')) {
+            errorMessage = '❌ AI Error: Server error. The AI model may be overloaded or not running.';
+          } else if (error.message.includes('network') || error.message.includes('ECONNREFUSED')) {
+            errorMessage = '❌ AI Error: Network connection issue. Check your internet connection.';
+          } else if (error.message.includes('timeout')) {
+            errorMessage = '❌ AI Error: Request timed out. The model may be too slow or overloaded.';
+          } else if (error.message.includes('model')) {
+            errorMessage = '❌ AI Error: Model not found or not loaded. Check if Ollama is running.';
+          }
+          
+          addMessageToChat(errorMessage, 'ai-message error');
+          addMessageToChat(clipboardMessage, 'correction-message');
+          
+          // Always try to copy chat to clipboard
+          try {
+            await window.electronAPI.copyChatToClipboard(error.message);
+          } catch (clipboardError) {
+            console.error('Failed to copy to clipboard:', clipboardError);
+          }
+        }
       }
       
-      // Auto-save chat after AI response
+      // Auto-save chat after response
       saveCurrentChat();
       
     } catch (error) {
-      console.error('AI response error:', error);
+      console.error('Response error:', error);
       
       // Remove typing indicator
       if (typingIndicator) typingIndicator.remove();
       
       // Add error message
-      addMessageToChat('❌ Error: Could not get AI response', 'ai-message error');
+      addMessageToChat('❌ Error: Could not process request', 'ai-message error');
     } finally {
       // Re-enable input
       if (userInput) userInput.disabled = false;
@@ -689,55 +755,172 @@ document.addEventListener('DOMContentLoaded', () => {
     return messageDiv;
   }
 
-  // Training buttons
-  if (exportTrainingDataBtn) {
-    exportTrainingDataBtn.addEventListener('click', async () => {
-      try {
-        const result = await window.electronAPI.exportTrainingData();
-        if (result.success) {
-          alert(`✅ Exported ${result.count} training examples!`);
-        }
-      } catch (error) {
-        console.error('Export error:', error);
-        alert('❌ Failed to export training data');
-      }
-    });
+  // Add profile system indicator
+  function addProfileIndicator() {
+    const chatHeader = document.getElementById('chat-header');
+    if (!chatHeader) return;
+    
+    const profileIndicator = document.createElement('div');
+    profileIndicator.id = 'profile-indicator';
+    profileIndicator.innerHTML = '🧠 Profile Active';
+    profileIndicator.style.cssText = `
+      background: linear-gradient(135deg, #4caf50, #8bc34a);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.8em;
+      font-weight: bold;
+      margin-left: 8px;
+      animation: pulse 2s infinite;
+    `;
+    
+    chatHeader.appendChild(profileIndicator);
   }
 
-  if (prepareDatasetBtn) {
-    prepareDatasetBtn.addEventListener('click', async () => {
-      try {
-        const result = await window.electronAPI.prepareTrainingDataset();
-        if (result.success) {
-          alert(`✅ Prepared ${result.count} training pairs!`);
-        } else {
-          alert('❌ No training data available');
+    // Training buttons
+    if (exportTrainingDataBtn) {
+      exportTrainingDataBtn.addEventListener('click', async () => {
+        try {
+          const result = await window.electronAPI.exportTrainingData();
+          alert(`Training data exported successfully!\n\n${result}`);
+        } catch (error) {
+          alert(`Error exporting training data: ${error.message}`);
         }
-      } catch (error) {
-        console.error('Dataset preparation error:', error);
-        alert('❌ Failed to prepare dataset');
-      }
-    });
-  }
+      });
+    }
 
-  if (getFastestModelBtn) {
-    getFastestModelBtn.addEventListener('click', async () => {
-      try {
-        const fastestModel = await window.electronAPI.getFastestModel();
-        alert(`⚡ Fastest available model: ${fastestModel}`);
+    if (prepareDatasetBtn) {
+      prepareDatasetBtn.addEventListener('click', async () => {
+        try {
+          const result = await window.electronAPI.prepareTrainingDataset();
+          alert(`Dataset prepared successfully!\n\n${result}`);
+        } catch (error) {
+          alert(`Error preparing dataset: ${error.message}`);
+        }
+      });
+    }
+
+    if (getFastestModelBtn) {
+      getFastestModelBtn.addEventListener('click', async () => {
+        try {
+          const result = await window.electronAPI.getFastestModel();
+          alert(`Fastest model: ${result}`);
+        } catch (error) {
+          alert(`Error getting fastest model: ${error.message}`);
+        }
+      });
+    }
+
+    // Data sharing buttons
+    const exportModelDataBtn = document.getElementById('export-model-data');
+    const exportChatLogsBtn = document.getElementById('export-chat-logs');
+    const showSystemInfoBtn = document.getElementById('show-system-info');
+    const importChatDataBtn = document.getElementById('import-chat-data');
+    const analyzeModelsBtn = document.getElementById('analyze-models');
+
+    if (exportModelDataBtn) {
+      exportModelDataBtn.addEventListener('click', async () => {
+        try {
+          const modelList = await window.electronAPI.getAvailableModels();
+          const modelData = {
+            timestamp: new Date().toISOString(),
+            models: modelList,
+            systemInfo: {
+              platform: navigator.platform,
+              userAgent: navigator.userAgent,
+              memory: performance.memory ? {
+                used: performance.memory.usedJSHeapSize,
+                total: performance.memory.totalJSHeapSize
+              } : 'Not available'
+            }
+          };
+          
+          const dataStr = JSON.stringify(modelData, null, 2);
+          const dataBlob = new Blob([dataStr], {type: 'application/json'});
+          const url = URL.createObjectURL(dataBlob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `model-data-${Date.now()}.json`;
+          link.click();
+          URL.revokeObjectURL(url);
+          
+          alert('Model data exported successfully!');
+        } catch (error) {
+          alert(`Error exporting model data: ${error.message}`);
+        }
+      });
+    }
+
+    if (exportChatLogsBtn) {
+      exportChatLogsBtn.addEventListener('click', async () => {
+        try {
+          const chatHistory = localStorage.getItem('chatHistoryList') || '[]';
+          const chatData = {
+            timestamp: new Date().toISOString(),
+            chatHistory: JSON.parse(chatHistory),
+            totalChats: JSON.parse(chatHistory).length
+          };
+          
+          const dataStr = JSON.stringify(chatData, null, 2);
+          const dataBlob = new Blob([dataStr], {type: 'application/json'});
+          const url = URL.createObjectURL(dataBlob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `chat-logs-${Date.now()}.json`;
+          link.click();
+          URL.revokeObjectURL(url);
+          
+          alert('Chat logs exported successfully!');
+        } catch (error) {
+          alert(`Error exporting chat logs: ${error.message}`);
+        }
+      });
+    }
+
+    if (showSystemInfoBtn) {
+      showSystemInfoBtn.addEventListener('click', () => {
+        const systemInfo = {
+          platform: navigator.platform,
+          userAgent: navigator.userAgent,
+          language: navigator.language,
+          cookieEnabled: navigator.cookieEnabled,
+          onLine: navigator.onLine,
+          memory: performance.memory ? {
+            used: `${Math.round(performance.memory.usedJSHeapSize / 1024 / 1024)}MB`,
+            total: `${Math.round(performance.memory.totalJSHeapSize / 1024 / 1024)}MB`
+          } : 'Not available',
+          screen: {
+            width: screen.width,
+            height: screen.height,
+            availWidth: screen.availWidth,
+            availHeight: screen.availHeight
+          }
+        };
         
-        // Auto-switch to fastest model
-        if (modelDropdown) {
-          modelDropdown.value = fastestModel;
-          currentModel = fastestModel;
-          updateConnectionStatus();
+        const infoStr = JSON.stringify(systemInfo, null, 2);
+        alert(`System Information:\n\n${infoStr}`);
+      });
+    }
+
+    if (analyzeModelsBtn) {
+      analyzeModelsBtn.addEventListener('click', async () => {
+        try {
+          const modelList = await window.electronAPI.getAvailableModels();
+          let analysis = 'Model Analysis:\n\n';
+          
+          modelList.forEach((model, index) => {
+            analysis += `${index + 1}. ${model}\n`;
+          });
+          
+          analysis += `\nTotal Models: ${modelList.length}`;
+          analysis += `\nTimestamp: ${new Date().toLocaleString()}`;
+          
+          alert(analysis);
+        } catch (error) {
+          alert(`Error analyzing models: ${error.message}`);
         }
-      } catch (error) {
-        console.error('Get fastest model error:', error);
-        alert('❌ Failed to get fastest model');
-      }
-    });
-  }
+      });
+    }
 
   // Chat history button click
   if (chatHistoryButton) {
@@ -759,7 +942,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Close sidebar
   if (closeSidebar) {
     closeSidebar.addEventListener('click', (e) => {
-      e.preventDefault();
+        e.preventDefault();
       e.stopPropagation();
       console.log('Closing chat sidebar...');
       if (chatSidebar) {
